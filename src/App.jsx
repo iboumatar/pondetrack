@@ -72,7 +72,7 @@ const STOCK_COMMUN = { aliment: 0, capacite: 5000, consoJour: 0 };
 const DATA = {
   ferme:    "Ma Ferme",
   ponte:    { auj:0, hier:0, objectif:0, taux:0, semaine:[0,0,0,0,0,0,0] },
-  effectif: { total:0, pondeuses:0, mortalite:0, misEnPlace: new Date().toISOString().slice(0,10) },
+  effectif: { total:0, pondeuses:0, mortalite:0, misEnPlace: "2026-01-01" },
   stock:    STOCK_COMMUN,
   finance:  { ca:0, benefice:0, marge:0 },
   alertes:  [],
