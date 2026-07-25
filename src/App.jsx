@@ -1435,6 +1435,63 @@ function FormVente({ onSave, stockOeufs, setStockOeufs }) {
   );
 }
 
+
+// ── WIDGET MISE À JOUR STOCK ──────────────────────────────────────────────────
+function UpdateStockWidget({ stockKg, setStock }) {
+  const [show,     setShow]     = useState(false);
+  const [newStock, setNewStock] = useState("");
+
+  return (
+    <div style={{ background:T.cardVert, borderRadius:16, padding:"14px 16px",
+      marginBottom:14, border:`1px solid rgba(13,122,56,0.15)` }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase",
+            letterSpacing:"0.08em", fontWeight:700 }}>📦 Stock actuel</div>
+          <div style={{ display:"flex", alignItems:"baseline", gap:6, marginTop:4 }}>
+            <span style={{ fontSize:28, fontWeight:900, color:T.vitals }}>{Math.floor(stockKg/SAC_KG)}</span>
+            <span style={{ fontSize:13, color:T.textSub, fontWeight:700 }}>sacs</span>
+            <span style={{ fontSize:12, color:T.textMuted }}>({fmt(stockKg)} kg)</span>
+          </div>
+        </div>
+        <button onClick={() => setShow(v=>!v)} style={{
+          background: show ? T.danger : T.vitals,
+          color:"#fff", border:"none", borderRadius:10,
+          padding:"9px 14px", fontSize:12, fontWeight:800, cursor:"pointer"
+        }}>{show ? "✕" : "✏️ Modifier"}</button>
+      </div>
+
+      {show && (
+        <div style={{ marginTop:12 }}>
+          <div style={{ fontSize:11, color:T.textMuted, marginBottom:6 }}>
+            Entrez le stock réel en kg (ex: 1200 = 24 sacs)
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="number" value={newStock}
+              onChange={e => setNewStock(e.target.value)}
+              placeholder="0"
+              style={{ flex:1, padding:"10px 14px", borderRadius:10,
+                border:`1px solid ${T.vitals}55`, background:"rgba(255,255,255,0.9)",
+                fontSize:20, fontWeight:900, color:T.vitals, boxSizing:"border-box" }} />
+            <button onClick={() => {
+              const kg = parseInt(newStock) || 0;
+              if (kg >= 0) { setStock(kg); setShow(false); setNewStock(""); }
+            }} style={{
+              background:T.vitals, color:"#fff", border:"none",
+              borderRadius:10, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer"
+            }}>✓</button>
+          </div>
+          {newStock && (
+            <div style={{ fontSize:11, color:T.vitals, marginTop:6, fontWeight:700 }}>
+              = {Math.floor((parseInt(newStock)||0)/SAC_KG)} sacs + {(parseInt(newStock)||0)%SAC_KG} kg restants
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── PAGE STOCK ALIMENT ────────────────────────────────────────────────────────
 function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockKgGlobal }) {
 
