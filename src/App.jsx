@@ -4856,6 +4856,39 @@ export default function App() {
     setPage("dashboard");
   };
 
+  // Écouter le retour Google OAuth au chargement
+  useEffect(() => {
+    const supabaseUrl = "https://smqqhoqvsmfzmbtvvyyt.supabase.co";
+    const supabaseKey = "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD";
+    import('@supabase/supabase-js').then(({ createClient }) => {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      // Vérifier si une session existe déjà (retour Google)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && appState === "auth") {
+          const u = session.user;
+          handleAuth({
+            nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
+            email: u.email,
+            provider: u.app_metadata?.provider || "google",
+            isNew: true,
+          });
+        }
+      });
+      // Écouter les changements d'état auth
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN" && session?.user && appState === "auth") {
+          const u = session.user;
+          handleAuth({
+            nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
+            email: u.email,
+            provider: u.app_metadata?.provider || "google",
+            isNew: true,
+          });
+        }
+      });
+    });
+  }, []);
+
   // Rendu selon l'état de l'app
   if (appState === "splash")     return <SplashScreen onFinish={() => setAppState("auth")} />;
   if (appState === "auth")       return <AuthPage onAuth={handleAuth} />;
