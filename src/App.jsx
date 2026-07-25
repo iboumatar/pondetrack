@@ -63,81 +63,20 @@ const DARK = {
 const T = { ...LIGHT };
 
 // Données initiales par poulailler (modifiables dynamiquement)
-const POULAILLERS_INIT = {
-  A: {
-    id: "A", nom: "Poulailler A", couleur: "#16A34A", ico: "🐔",
-    capacite: 2200,
-    ponte:    { auj:391, hier:387, objectif:420, taux:85, semaine:[360,375,387,371,383,376,391], dateSaisie:"2026-07-13" },
-    effectif: { total:2120, pondeuses:2100, mortalite:4, misEnPlace:"2025-01-20" },
-    consoJour: 230,   // kg/jour pour ce poulailler
-    oeufsDispos: 4320,
-    derniereVente: { date:"2026-07-03", qte:600 },
-  },
-  B: {
-    id: "B", nom: "Poulailler B", couleur: "#2563EB", ico: "🐓",
-    capacite: 1500,
-    ponte:    { auj:271, hier:265, objectif:300, taux:82, semaine:[240,255,260,265,258,263,271], dateSaisie:"2026-07-13" },
-    effectif: { total:1380, pondeuses:1350, mortalite:2, misEnPlace:"2025-04-10" },
-    consoJour: 148,   // kg/jour pour ce poulailler
-    oeufsDispos: 2100,
-    derniereVente: { date:"2026-07-02", qte:300 },
-  },
-};
+const POULAILLERS_INIT = {};  // Vide — rempli après onboarding
 
-// Stock aliment COMMUN aux deux poulaillers
-const STOCK_COMMUN = {
-  aliment:   1240,  // kg actuels
-  capacite:  2000,  // kg max
-  // consoJour total calculé dynamiquement dans App
-  get consoJour() {
-    return Object.values(POULAILLERS_INIT).reduce((s, p) => s + p.consoJour, 0);
-  },
-};
+
+// Stock aliment COMMUN — vide au départ
+const STOCK_COMMUN = { aliment: 0, capacite: 5000, consoJour: 0 };
 
 const DATA = {
-  ferme: "Ferme MATAR",
-  ponte: { auj: 391, hier: 387, objectif: 420, taux: 85, semaine: [360, 375, 387, 371, 383, 376, 391] },
-  effectif: { total: 2120, pondeuses: 2100, mortalite: 4, misEnPlace: '2025-01-20' },
-  stock: STOCK_COMMUN,
-  finance: { ca: 1845000, benefice: 865000, marge: 47 },
-  alertes: [
-    { id: 1, type: "danger",  msg: "Vaccin Newcastle — dans 8 jours" },
-    { id: 2, type: "danger",  msg: "Vitamine B-Complex — dans 2 jours" },
-    { id: 3, type: "warning", msg: "Stock anticoccidien : 3 flacons restants" },
-    { id: 4, type: "warning", msg: "Aliment : 10 jours d'autonomie" },
-  ],
+  ferme:    "Ma Ferme",
+  ponte:    { auj:0, hier:0, objectif:0, taux:0, semaine:[0,0,0,0,0,0,0] },
+  effectif: { total:0, pondeuses:0, mortalite:0, misEnPlace: new Date().toISOString().slice(0,10) },
+  stock:    STOCK_COMMUN,
+  finance:  { ca:0, benefice:0, marge:0 },
+  alertes:  [],
 };
-
-const PLATEAU    = 30;   // œufs par plateau
-const PAQUET_ALV = 50;   // alvéoles par paquet
-const SAC_KG  = 50; // kg par sac d'aliment
-function toSacs(kg) {
-  const pleins = Math.floor(kg / SAC_KG);
-  const reste  = kg % SAC_KG;
-  return { pleins, reste };
-}
-function calcAgeSemaines(dateStr) {
-  const debut = new Date(dateStr);
-  const now   = new Date();
-  const diff  = Math.floor((now - debut) / (1000 * 60 * 60 * 24 * 7));
-  return diff;
-}
-
-function dateRupture(kg, conso = 230) {
-  const jours = Math.floor(Math.max(0, kg) / Math.max(1, conso));
-  const d = new Date();
-  d.setDate(d.getDate() + jours);
-  return {
-    jours,
-    date: d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" }),
-    critique: jours <= 2,
-  };
-}
-function toPlateaux(n) {
-  const pleins = Math.floor(n / PLATEAU);
-  const reste  = n % PLATEAU;
-  return { pleins, reste };
-}
 
 const JOURS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Auj"];
 const PAGES_NAV = [
