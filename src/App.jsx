@@ -4775,7 +4775,10 @@ export default function App() {
   };
 
   // Liste dynamique des poulaillers
-  const [poulaillers, setPoulaillers] = useState(() => getSaved("pondetrack_poulaillers", POULAILLERS_INIT));
+  const [poulaillers,  setPoulaillers]  = useState(() => getSaved("pondetrack_poulaillers", POULAILLERS_INIT));
+
+  // Consommation journalière — DOIT être défini avant ajouterPoulailler
+  const [consoJours, setConsoJours] = useState(() => getSaved("pondetrack_conso", {}));
 
   const ajouterPoulailler = (id, nom, capacite, misEnPlace) => {
     const couleurs = ["#16A34A","#2563EB","#D97706","#9333EA","#DC2626","#0891B2"];
@@ -4808,9 +4811,6 @@ export default function App() {
     });
     if (poulaillerActif?.id === id) setPoulaillerActif(null);
   };
-
-  // Consommation journalière par poulailler — modifiable manuellement
-  const [consoJours, setConsoJours] = useState(() => getSaved("pondetrack_conso", {}));
 
   const updateConso = (id, val) => {
     setConsoJours(prev => ({ ...prev, [id]: val }));
