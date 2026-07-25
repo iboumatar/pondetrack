@@ -1,4 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// Client Supabase global
+const supabaseClient = createClient(
+  "https://smqqhoqvsmfzmbtvvyyt.supabase.co",
+  "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD"
+);
 
 const LIGHT = {
   bg:          "#F8FAF9",
@@ -4077,12 +4084,7 @@ function AuthPage({ onAuth }) {
 
         {/* Google */}
         <button onClick={async () => {
-          const { createClient } = await import('@supabase/supabase-js');
-          const supabase = createClient(
-            "https://smqqhoqvsmfzmbtvvyyt.supabase.co",
-            "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD"
-          );
-          await supabase.auth.signInWithOAuth({
+          await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: { redirectTo: 'https://pondetrack.vercel.app' }
           });
@@ -4858,35 +4860,37 @@ export default function App() {
 
   // Écouter le retour Google OAuth au chargement
   useEffect(() => {
-    const supabaseUrl = "https://smqqhoqvsmfzmbtvvyyt.supabase.co";
-    const supabaseKey = "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD";
-    import('@supabase/supabase-js').then(({ createClient }) => {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      // Vérifier si une session existe déjà (retour Google)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user && appState === "auth") {
-          const u = session.user;
-          handleAuth({
-            nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
-            email: u.email,
-            provider: u.app_metadata?.provider || "google",
-            isNew: true,
-          });
-        }
-      });
-      // Écouter les changements d'état auth
-      supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_IN" && session?.user && appState === "auth") {
-          const u = session.user;
-          handleAuth({
-            nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
-            email: u.email,
-            provider: u.app_metadata?.provider || "google",
-            isNew: true,
-          });
-        }
-      });
+    // Vérifier session existante (retour après Google)
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        handleAuth({
+          nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
+          email: u.email,
+          provider: u.app_metadata?.provider || "google",
+          isNew: false,
+        });
+      }
     });
+
+    // Écouter les changements auth (connexion Google en temps réel)
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const u = session.user;
+        handleAuth({
+          nom: u.user_metadata?.full_name || u.email?.split('@')[0] || "Éleveur",
+          email: u.email,
+          provider: u.app_metadata?.provider || "google",
+          isNew: true,
+        });
+      }
+      if (event === "SIGNED_OUT") {
+        setAppState("auth");
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Rendu selon l'état de l'app
