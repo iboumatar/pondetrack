@@ -1,0 +1,26 @@
+{
+  "short_name": "PondeTrack",
+  "name": "PondeTrack — Gestion Poulailler",
+  "description": "Suivi quotidien de vos poules pondeuses",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0F2318",
+  "background_color": "#0F2318",
+  "lang": "fr",
+  "categories": ["business", "productivity"]
+}
