@@ -1650,57 +1650,7 @@ function StockPage({ setPage, consoTotale, poulaillers }) {
             </div>
           </div>
 
-          {/* Mise à jour stock actuel */}
-          {(() => {
-            const [showUpdate, setShowUpdate] = useState(false);
-            const [newStock, setNewStock]     = useState("");
-            return (
-              <div style={{ background:T.cardAmbre, borderRadius:16, padding:"14px 16px",
-                marginBottom:14, border:`1px solid rgba(224,147,18,0.2)` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: showUpdate?12:0 }}>
-                  <div>
-                    <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700 }}>
-                      📦 Stock actuel
-                    </div>
-                    <div style={{ display:"flex", alignItems:"baseline", gap:6, marginTop:4 }}>
-                      <span style={{ fontSize:28, fontWeight:900, color:T.amber }}>{Math.floor(stockKg/SAC_KG)}</span>
-                      <span style={{ fontSize:13, color:T.textSub, fontWeight:700 }}>sacs</span>
-                      <span style={{ fontSize:12, color:T.textMuted }}>({fmt(stockKg)} kg)</span>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowUpdate(v=>!v)} style={{
-                    background: showUpdate ? T.cardRouge : T.vitals,
-                    color:"#fff", border:"none", borderRadius:10,
-                    padding:"8px 14px", fontSize:12, fontWeight:800, cursor:"pointer"
-                  }}>{showUpdate ? "✕ Annuler" : "✏️ Mettre à jour"}</button>
-                </div>
-                {showUpdate && (
-                  <div>
-                    <div style={{ fontSize:11, color:T.textMuted, marginBottom:6 }}>
-                      Entrez le stock réel actuel en kg
-                    </div>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input type="number" value={newStock} onChange={e=>setNewStock(e.target.value)}
-                        placeholder="Ex: 1200"
-                        style={{ flex:1, padding:"10px 14px", borderRadius:10,
-                          border:`1px solid ${T.amber}55`, background:"rgba(255,255,255,0.9)",
-                          fontSize:18, fontWeight:900, color:T.amber, boxSizing:"border-box" }} />
-                      <button onClick={() => {
-                        const kg = parseInt(newStock)||0;
-                        if (kg > 0) { setStockKg(kg); setShowUpdate(false); setNewStock(""); }
-                      }} style={{
-                        background:T.vitals, color:"#fff", border:"none",
-                        borderRadius:10, padding:"10px 18px", fontSize:15, fontWeight:800, cursor:"pointer"
-                      }}>✓</button>
-                    </div>
-                    <div style={{ fontSize:11, color:T.textMuted, marginTop:6 }}>
-                      = {Math.floor((parseInt(newStock)||0)/SAC_KG)} sacs complets + {(parseInt(newStock)||0)%SAC_KG} kg
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+
 
           {/* Distributions du jour */}
           {(() => {
@@ -4802,7 +4752,7 @@ export default function App() {
   const [page, setPage]                       = useState("selection");
   const [darkMode, setDarkMode]               = useState(false);
   const [poulaillerActif, setPoulaillerActif] = useState(null);
-  const [nomFerme, setNomFerme]               = useState(savedNom || "");
+  const [nomFerme, setNomFerme]               = useState(() => { try { return localStorage.getItem("pondetrack_ferme_nom") || ""; } catch { return ""; } });
   const [user, setUser]                       = useState(null);
 
   const handleAuth = (userData) => {
@@ -4818,12 +4768,12 @@ export default function App() {
   };
 
   // Charger config depuis localStorage si disponible
-  const savedPoulaillers = localStorage.getItem("pondetrack_poulaillers");
-  const savedNom         = localStorage.getItem("pondetrack_ferme_nom");
-  const savedConso       = localStorage.getItem("pondetrack_conso");
+  const getSaved = (key, fallback) => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  };
 
   // Liste dynamique des poulaillers
-  const [poulaillers, setPoulaillers] = useState(savedPoulaillers ? JSON.parse(savedPoulaillers) : POULAILLERS_INIT);
+  const [poulaillers, setPoulaillers] = useState(() => getSaved("pondetrack_poulaillers", POULAILLERS_INIT));
 
   const ajouterPoulailler = (id, nom, capacite, misEnPlace) => {
     const couleurs = ["#16A34A","#2563EB","#D97706","#9333EA","#DC2626","#0891B2"];
@@ -4858,7 +4808,7 @@ export default function App() {
   };
 
   // Consommation journalière par poulailler — modifiable manuellement
-  const [consoJours, setConsoJours] = useState(savedConso ? JSON.parse(savedConso) : {});
+  const [consoJours, setConsoJours] = useState(() => getSaved("pondetrack_conso", {}));
 
   const updateConso = (id, val) => {
     setConsoJours(prev => ({ ...prev, [id]: val }));
