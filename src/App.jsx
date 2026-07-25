@@ -981,22 +981,15 @@ function PontePage({ setPage, poulailler, ventes, setVentes }) {
   const [saisieBat,  setSaisieBat]    = useState("A");
 
   // Historique pontes (mock)
-  const [historique, setHistorique] = useState([
-    { id:1, date:"2026-07-06", bat:"A", plateaux:8,  oeufs:12, total:252 },
-    { id:2, date:"2026-07-06", bat:"B", plateaux:5,  oeufs:7,  total:157 },
-    { id:3, date:"2026-07-05", bat:"A", plateaux:7,  oeufs:25, total:235 },
-    { id:4, date:"2026-07-05", bat:"B", plateaux:5,  oeufs:3,  total:153 },
-    { id:5, date:"2026-07-04", bat:"A", plateaux:8,  oeufs:0,  total:240 },
-    { id:6, date:"2026-07-04", bat:"B", plateaux:4,  oeufs:18, total:138 },
-  ]);
+  const [historique, setHistorique] = useState([]);
 
   // Stock œufs dispos
-  const [stockOeufs, setStockOeufs]   = useState(4320);
+  const [stockOeufs, setStockOeufs]   = useState(0);
   const [venteDate,  setVenteDate]    = useState(new Date().toISOString().slice(0,10));
   const [ventePlat,  setVentePlat]    = useState("");
 
   // Stock alvéoles (alvéoles)
-  const [alveoles,   setAlveoles]     = useState(180);
+  const [alveoles,   setAlveoles]     = useState(0);
   const [alveAdd,    setAlveAdd]      = useState("");
 
 
@@ -1445,7 +1438,7 @@ function FormVente({ onSave, stockOeufs, setStockOeufs }) {
 // ── PAGE STOCK ALIMENT ────────────────────────────────────────────────────────
 function StockPage({ setPage, consoTotale, poulaillers }) {
 
-  const [stockKg, setStockKg]         = useState(1240);
+  const [stockKg, setStockKg]         = useState(0);
   // Stock estimé selon l'heure (distributions auto)
   const getStockEstimePage = () => {
     const heure = new Date().getHours() + new Date().getMinutes()/60;
@@ -1475,14 +1468,7 @@ function StockPage({ setPage, consoTotale, poulaillers }) {
   const [activeTab, setActiveTab]     = useState("stock");
 
   // Historique mouvements
-  const [historique, setHistorique]   = useState([
-    { id:1, type:"livraison",    date:"2026-07-01", sacs:20, kg:1000, label:"Livraison fournisseur" },
-    { id:2, type:"consommation", date:"2026-07-02", sacs:4,  kg:230,  label:"Conso journalière" },
-    { id:3, type:"consommation", date:"2026-07-03", sacs:4,  kg:230,  label:"Conso journalière" },
-    { id:4, type:"consommation", date:"2026-07-04", sacs:4,  kg:230,  label:"Conso journalière" },
-    { id:5, type:"livraison",    date:"2026-07-05", sacs:10, kg:500,  label:"Livraison fournisseur" },
-    { id:6, type:"consommation", date:"2026-07-06", sacs:4,  kg:230,  label:"Conso journalière" },
-  ]);
+  const [historique, setHistorique]   = useState([]);
 
   const autonomie   = Math.floor(stockKg / (consoTotale || consoJour));
   const rupture     = new Date();
@@ -1908,12 +1894,7 @@ function EffectifPage({ setPage, poulailler }) {
   });
 
   // Historique mortalité
-  const [mortalites, setMortalites] = useState([
-    { id:1, date:"2026-07-05", nb:2, cause:"Inconnu" },
-    { id:2, date:"2026-07-03", nb:1, cause:"Maladie" },
-    { id:3, date:"2026-06-28", nb:3, cause:"Inconnu" },
-    { id:4, date:"2026-06-20", nb:1, cause:"Accident" },
-  ]);
+  const [mortalites, setMortalites] = useState([]);
 
   // Saisie mortalité
   const [mortDate,  setMortDate]  = useState(new Date().toISOString().slice(0,10));
@@ -2761,18 +2742,7 @@ function FinancePage({ setPage, ventes: ventesProps, setVentes: setVentesProps }
   const ventes    = ventesProps || [];
   const setVentes = setVentesProps || (() => {});
 
-  const [depenses, setDepenses] = useState([
-    { id:1,  date:"2026-07-01", cat:"aliment",    montant:250000, note:"20 sacs provende" },
-    { id:2,  date:"2026-07-01", cat:"employe",    montant:75000,  note:"Salaire juillet" },
-    { id:3,  date:"2026-06-28", cat:"medicament", montant:25000,  note:"Vaccin Newcastle" },
-    { id:4,  date:"2026-06-15", cat:"alveoles",   montant:15000,  note:"6 paquets alvéoles" },
-    { id:5,  date:"2026-06-01", cat:"location",   montant:50000,  note:"Loyer juin" },
-    { id:6,  date:"2026-05-30", cat:"aliment",    montant:250000, note:"20 sacs provende" },
-    { id:7,  date:"2026-05-15", cat:"employe",    montant:75000,  note:"Salaire mai" },
-    { id:8,  date:"2026-05-10", cat:"medicament", montant:18000,  note:"Vitamines E+Sélénium" },
-    { id:9,  date:"2026-05-01", cat:"location",   montant:50000,  note:"Loyer mai" },
-    { id:10, date:"2026-04-28", cat:"aliment",    montant:250000, note:"20 sacs provende" },
-  ]);
+  const [depenses, setDepenses] = useState([]);
 
   // Saisie vente
 
@@ -4772,7 +4742,7 @@ export default function App() {
   const [page, setPage]                       = useState("selection");
   const [darkMode, setDarkMode]               = useState(false);
   const [poulaillerActif, setPoulaillerActif] = useState(null);
-  const [nomFerme, setNomFerme]               = useState("Ferme MATAR");
+  const [nomFerme, setNomFerme]               = useState("");
   const [user, setUser]                       = useState(null);
 
   const handleAuth = (userData) => {
@@ -4837,13 +4807,7 @@ export default function App() {
   Object.assign(T, theme);
 
   // État ventes partagé entre Ponte et Finances
-  const [ventesGlobal, setVentesGlobal] = useState([
-    { id:1, date:"2026-07-03", ponteDate:"2026-06-28", plateaux:20, prixUnitaire:3500, total:70000,  note:"Client Mamadou", statut:"impaye",  dateEcheance:"2026-07-13" },
-    { id:2, date:"2026-06-28", ponteDate:"2026-06-20", plateaux:35, prixUnitaire:3500, total:122500, note:"Marché central",  statut:"paye",    datePaiement:"2026-06-28" },
-    { id:3, date:"2026-06-20", ponteDate:"2026-06-10", plateaux:30, prixUnitaire:3500, total:105000, note:"Client Awa",      statut:"partiel", montantRecu:55000, dateEcheance:"2026-07-01" },
-    { id:4, date:"2026-06-10", ponteDate:"2026-06-01", plateaux:40, prixUnitaire:3500, total:140000, note:"Marché central",  statut:"paye",    datePaiement:"2026-06-12" },
-    { id:5, date:"2026-05-30", ponteDate:"2026-05-20", plateaux:45, prixUnitaire:3500, total:157500, note:"Client Mamadou",  statut:"paye",    datePaiement:"2026-06-02" },
-  ]);
+  const [ventesGlobal, setVentesGlobal] = useState([]);
 
   const handleOnboardingFinish = ({ ferme, poulaillers: newP, consoJours: newC }) => {
     setNomFerme(ferme.nom);
