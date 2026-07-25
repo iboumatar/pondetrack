@@ -4467,6 +4467,21 @@ function Onboarding({ onFinish }) {
   );
 }
 
+
+// ── CALCUL STOCK ESTIMÉ SELON L'HEURE ─────────────────────────────────────────
+function getStockEstime(kg, conso) {
+  const now   = new Date();
+  const heure = now.getHours() + now.getMinutes() / 60;
+  const rationM = Math.round((conso || 0) * 0.5);
+  const rationS = Math.round((conso || 0) * 0.5);
+  let stockEstime = kg || 0;
+  const distribs = [];
+  if (heure >= 8)  { stockEstime -= rationM; distribs.push({ heure:"08:00", kg:rationM, label:"Matin (50%)" }); }
+  if (heure >= 16) { stockEstime -= rationS; distribs.push({ heure:"16:00", kg:rationS, label:"Soir (50%)"  }); }
+  const prochaineDistrib = heure < 8 ? "08:00" : heure < 16 ? "16:00" : "08:00 demain";
+  return { stockEstime: Math.max(0, stockEstime), distribs, prochaineDistrib };
+}
+
 // ── PAGE SÉLECTION POULAILLER ─────────────────────────────────────────────────
 function SelectionPoulailler({ onSelect, poulaillerActif, consoJours, consoTotale, poulaillers, onAjouter, onSupprimer }) {
   const liste                       = Object.values(poulaillers || POULAILLERS_INIT);
