@@ -372,7 +372,7 @@ function Placeholder({ title, ico }) {
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function DashboardPage({ setPage, darkMode, setDarkMode, poulailler, consoJours, updateConso, consoTotale, poulaillers, nomFerme, setAppState }) {
+function DashboardPage({ setPage, darkMode, setDarkMode, poulailler, consoJours, updateConso, consoTotale, poulaillers, nomFerme, setAppState, stockKgGlobal }) {
   // Stock commun, ponte et effectif par poulailler
   const cTotale = consoTotale || Object.values(POULAILLERS_INIT).reduce((s,p)=>s+p.consoJour,0);
   const d = {
@@ -1436,9 +1436,15 @@ function FormVente({ onSave, stockOeufs, setStockOeufs }) {
 }
 
 // ── PAGE STOCK ALIMENT ────────────────────────────────────────────────────────
-function StockPage({ setPage, consoTotale, poulaillers }) {
+function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockKgGlobal }) {
 
-  const [stockKg, setStockKg]         = useState(0);
+  const [stockKg, setStockKg] = useState(stockKgGlobal || 0);
+  // Synchroniser avec l'état global
+  const setStock = (val) => {
+    const newVal = typeof val === 'function' ? val(stockKg) : val;
+    setStockKg(newVal);
+    if (setStockKgGlobal) setStockKgGlobal(newVal);
+  };
   // Stock estimé selon l'heure (distributions auto)
   const getStockEstimePage = () => {
     const heure = new Date().getHours() + new Date().getMinutes()/60;
@@ -1487,7 +1493,7 @@ function StockPage({ setPage, consoTotale, poulaillers }) {
     const sacs = parseInt(livrSacs) || 0;
     if (!sacs) return;
     const kg = sacs * SAC_KG;
-    setStockKg(p => p + kg);
+    setStock(p => p + kg);
     setHistorique(p => [{
       id: Date.now(), type:"livraison", date: livrDate,
       sacs, kg, label:"Livraison fournisseur"
@@ -1505,7 +1511,7 @@ function StockPage({ setPage, consoTotale, poulaillers }) {
     const total  = totalA + totalB;
     const sacsTotal = Math.floor(total / SAC_KG);
     if (!total) return;
-    setStockKg(p => Math.max(0, p - total));
+    setStock(p => Math.max(0, p - total));
     setConsoJour(total);
     // Une seule ligne = somme totale A + B
     setHistorique(p => [{
@@ -4820,6 +4826,9 @@ export default function App() {
   const theme = darkMode ? DARK : LIGHT;
   Object.assign(T, theme);
 
+  // Stock aliment global partagé entre Dashboard et StockPage
+  const [stockKgGlobal, setStockKgGlobal] = useState(0);
+
   // État ventes partagé entre Ponte et Finances
   const [ventesGlobal, setVentesGlobal] = useState([]);
 
@@ -4885,10 +4894,10 @@ export default function App() {
     switch (page) {
       case "onboarding": return <Onboarding onFinish={handleOnboardingFinish} />;
       case "selection": return <SelectionPoulailler onSelect={handleSelectPoulailler} poulaillerActif={poulaillerActif} consoJours={consoJours} consoTotale={consoTotale} poulaillers={poulaillers} onAjouter={ajouterPoulailler} onSupprimer={supprimerPoulailler} />;
-      case "dashboard": return <DashboardPage setPage={setPage} darkMode={darkMode} setDarkMode={setDarkMode} poulailler={poulaillerActif} consoJours={consoJours} updateConso={updateConso} consoTotale={consoTotale} poulaillers={poulaillers} nomFerme={nomFerme} setAppState={setAppState} />;
+      case "dashboard": return <DashboardPage setPage={setPage} darkMode={darkMode} setDarkMode={setDarkMode} poulailler={poulaillerActif} consoJours={consoJours} updateConso={updateConso} consoTotale={consoTotale} poulaillers={poulaillers} nomFerme={nomFerme} setAppState={setAppState} stockKgGlobal={stockKgGlobal} />;
       case "ponte":     return <PontePage setPage={setPage} poulailler={poulaillerActif} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "sante":     return <SantePage setPage={setPage} />;
-      case "stock":     return <StockPage setPage={setPage} consoTotale={consoTotale} poulaillers={poulaillers} />;
+      case "stock":     return <StockPage setPage={setPage} consoTotale={consoTotale} poulaillers={poulaillers} stockKgGlobal={stockKgGlobal} setStockKgGlobal={setStockKgGlobal} />;
       case "effectif":  return <EffectifPage setPage={setPage} poulailler={poulaillerActif} />;
       case "finances":  return <FinancePage setPage={setPage} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "parametres": return <SettingsPage setPage={setPage} user={user} setUser={setUser} setAppState={setAppState} nomFerme={nomFerme} setNomFerme={setNomFerme} darkMode={darkMode} setDarkMode={setDarkMode} />;
