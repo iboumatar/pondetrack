@@ -312,18 +312,32 @@ function Placeholder({ title, ico }) {
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function DashboardPage({ setPage, darkMode, setDarkMode, poulailler, consoJours, updateConso, consoTotale, poulaillers, nomFerme, setAppState, stockKgGlobal }) {
-  // Stock commun, ponte et effectif par poulailler
-  const cTotale = consoTotale || Object.values(POULAILLERS_INIT).reduce((s,p)=>s+p.consoJour,0);
+  const cTotale    = consoTotale || 0;
+  const stockBrut  = stockKgGlobal || 0;
+  const now        = new Date();
+  const heure      = now.getHours() + now.getMinutes()/60;
+  const rationM    = Math.round(cTotale * 0.5);
+  const rationS    = Math.round(cTotale * 0.5);
+  let   stockEst   = stockBrut;
+  const distribs   = [];
+  if (heure >= 8)  { stockEst -= rationM; distribs.push({ heure:"08:00", kg:rationM }); }
+  if (heure >= 16) { stockEst -= rationS; distribs.push({ heure:"16:00", kg:rationS }); }
+  stockEst = Math.max(0, stockEst);
+  const stockInfo  = { stockEstime: stockEst, distribs, prochaineDistrib: heure < 8 ? "08:00" : heure < 16 ? "16:00" : "08:00 demain" };
+
   const d = {
     ...DATA,
-    ferme: nomFerme || DATA.ferme,
+    ferme:    nomFerme || "Ma Ferme",
     ponte:    poulailler ? poulailler.ponte    : DATA.ponte,
     effectif: poulailler ? poulailler.effectif : DATA.effectif,
     stock: {
-      ...STOCK_COMMUN,
+      aliment:       stockEst,
+      alimentBrut:   stockBrut,
+      capacite:      5000,
       consoJour:     cTotale,
-      oeufsDispos:   poulailler ? poulailler.oeufsDispos : 4320,
-      derniereVente: poulailler ? poulailler.derniereVente : { date:"2026-07-03", qte:600 },
+      stockInfo,
+      oeufsDispos:   poulailler ? (poulailler.oeufsDispos || 0) : 0,
+      derniereVente: poulailler ? (poulailler.derniereVente || { date:"", qte:0 }) : { date:"", qte:0 },
     },
   };
   const variation = d.ponte.auj - d.ponte.hier;
