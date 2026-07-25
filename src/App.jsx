@@ -4076,9 +4076,16 @@ function AuthPage({ onAuth }) {
         </div>
 
         {/* Google */}
-        <button onClick={() => {
-          // En prod : supabase.auth.signInWithOAuth({ provider: 'google' })
-          onAuth({ nom:"Utilisateur Google", email:"user@gmail.com", isNew:false, provider:"google" });
+        <button onClick={async () => {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            "https://smqqhoqvsmfzmbtvvyyt.supabase.co",
+            "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD"
+          );
+          await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: 'https://pondetrack.vercel.app' }
+          });
         }} style={{
           width:"100%", padding:"13px",
           background:"#fff", border:"1.5px solid #E0E0E0",
