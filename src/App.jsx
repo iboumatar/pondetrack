@@ -1009,6 +1009,117 @@ function CarrouselPonte({ poulaillers, setPage }) {
 }
 
 // ── PAGE PONTE ────────────────────────────────────────────────────────────────
+function UpdateOeufsStockWidget({ stockOeufs, setStockOeufs }) {
+  const [show, setShow] = useState(false);
+  const [plateaux, setPlateaux] = useState("");
+  const [oeufsPlus, setOeufsPlus] = useState("");
+  const pl = Math.max(0, parseInt(plateaux) || 0);
+  const oe = Math.max(0, parseInt(oeufsPlus) || 0);
+  const total = pl * PLATEAU + oe;
+
+  return (
+    <div style={{ background:T.cardSauge, borderRadius:16, padding:"14px 16px",
+      marginBottom:14, border:`1px solid ${T.border}` }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+        <div>
+          <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase",
+            letterSpacing:"0.08em", fontWeight:700 }}>🥚 Stock réel œufs</div>
+          <div style={{ fontSize:12, color:T.textSub, marginTop:4 }}>
+            {Math.floor(stockOeufs / PLATEAU)} plateaux + {stockOeufs % PLATEAU} œufs
+          </div>
+        </div>
+        <button onClick={() => setShow(v => !v)} style={{
+          background: show ? T.danger : T.blue, color:"#fff", border:"none",
+          borderRadius:10, padding:"9px 14px", fontSize:12, fontWeight:800, cursor:"pointer"
+        }}>{show ? "✕" : "✏️ Modifier"}</button>
+      </div>
+
+      {show && (
+        <div style={{ marginTop:12 }}>
+          <div style={{ fontSize:11, color:T.textMuted, marginBottom:6 }}>
+            Cette valeur remplace le stock actuel d'œufs disponibles.
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end" }}>
+            <div>
+              <div style={{ fontSize:10, color:T.textMuted, marginBottom:4 }}>Plateaux</div>
+              <input type="number" min="0" value={plateaux}
+                onChange={e => setPlateaux(e.target.value)} placeholder="0"
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"rgba(255,255,255,0.9)", fontSize:20, fontWeight:900, color:T.blue, boxSizing:"border-box" }} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:T.textMuted, marginBottom:4 }}>Œufs en plus</div>
+              <input type="number" min="0" max="29" value={oeufsPlus}
+                onChange={e => setOeufsPlus(e.target.value)} placeholder="0"
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"rgba(255,255,255,0.9)", fontSize:20, fontWeight:900, color:T.textPrimary, boxSizing:"border-box" }} />
+            </div>
+            <button onClick={() => {
+              setStockOeufs(total);
+              setShow(false);
+              setPlateaux("");
+              setOeufsPlus("");
+            }} style={{
+              background:T.blue, color:"#fff", border:"none", borderRadius:10,
+              padding:"12px 16px", fontSize:16, fontWeight:800, cursor:"pointer"
+            }}>✓</button>
+          </div>
+          {(plateaux || oeufsPlus) && (
+            <div style={{ fontSize:11, color:T.blue, marginTop:6, fontWeight:700 }}>
+              = {fmt(total)} œufs au total
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UpdateAlveolesStockWidget({ alveoles, setAlveoles }) {
+  const [show, setShow] = useState(false);
+  const [stockReel, setStockReel] = useState("");
+  const total = Math.max(0, parseInt(stockReel) || 0);
+
+  return (
+    <div style={{ background:T.cardSauge, borderRadius:16, padding:"14px 16px",
+      marginBottom:14, border:`1px solid ${T.border}` }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+        <div>
+          <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase",
+            letterSpacing:"0.08em", fontWeight:700 }}>📦 Stock réel alvéoles</div>
+          <div style={{ fontSize:12, color:T.textSub, marginTop:4 }}>{fmt(alveoles)} plateaux disponibles</div>
+        </div>
+        <button onClick={() => setShow(v => !v)} style={{
+          background: show ? T.danger : T.vitals, color:"#fff", border:"none",
+          borderRadius:10, padding:"9px 14px", fontSize:12, fontWeight:800, cursor:"pointer"
+        }}>{show ? "✕" : "✏️ Modifier"}</button>
+      </div>
+
+      {show && (
+        <div style={{ marginTop:12 }}>
+          <div style={{ fontSize:11, color:T.textMuted, marginBottom:6 }}>
+            Cette valeur remplace le stock actuel d'alvéoles.
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="number" min="0" value={stockReel}
+              onChange={e => setStockReel(e.target.value)} placeholder="Nb plateaux disponibles"
+              style={{ flex:1, padding:"10px 12px", borderRadius:10, border:`1px solid ${T.border}`,
+                background:"rgba(255,255,255,0.9)", fontSize:18, fontWeight:900, color:T.vitals, boxSizing:"border-box" }} />
+            <button onClick={() => {
+              setAlveoles(total);
+              setShow(false);
+              setStockReel("");
+            }} style={{
+              background:T.vitals, color:"#fff", border:"none", borderRadius:10,
+              padding:"10px 18px", fontSize:16, fontWeight:800, cursor:"pointer"
+            }}>✓</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PontePage({ setPage, poulailler, ventes, setVentes }) {
   const JOURS_SEMAINE = ["Lun","Mar","Mer","Jeu","Ven","Sam","Auj"];
 
@@ -1025,14 +1136,25 @@ function PontePage({ setPage, poulailler, ventes, setVentes }) {
   const [historique, setHistorique] = useState([]);
 
   // Stock œufs dispos
-  const [stockOeufs, setStockOeufs]   = useState(0);
+  const [stockOeufs, setStockOeufs]   = useState(() => {
+    try { return Math.max(0, Math.floor(toNumber(JSON.parse(localStorage.getItem("pondetrack_stock_oeufs")), 0))); } catch { return 0; }
+  });
   const [venteDate,  setVenteDate]    = useState(new Date().toISOString().slice(0,10));
   const [ventePlat,  setVentePlat]    = useState("");
 
   // Stock alvéoles (alvéoles)
-  const [alveoles,   setAlveoles]     = useState(0);
+  const [alveoles,   setAlveoles]     = useState(() => {
+    try { return Math.max(0, Math.floor(toNumber(JSON.parse(localStorage.getItem("pondetrack_stock_alveoles")), 0))); } catch { return 0; }
+  });
   const [alveAdd,    setAlveAdd]      = useState("");
 
+  useEffect(() => {
+    try { localStorage.setItem("pondetrack_stock_oeufs", JSON.stringify(Math.max(0, Math.floor(toNumber(stockOeufs))))); } catch {}
+  }, [stockOeufs]);
+
+  useEffect(() => {
+    try { localStorage.setItem("pondetrack_stock_alveoles", JSON.stringify(Math.max(0, Math.floor(toNumber(alveoles))))); } catch {}
+  }, [alveoles]);
 
   const ponteParJour = historique.reduce((acc, e) => {
     if (!acc[e.date]) acc[e.date] = 0;
@@ -1261,6 +1383,8 @@ function PontePage({ setPage, poulailler, ventes, setVentes }) {
             <div style={{ fontSize:13, color:T.textSub, marginTop:4 }}>= {stockOeufs.toLocaleString("fr-FR")} œufs au total</div>
           </div>
 
+          <UpdateOeufsStockWidget stockOeufs={stockOeufs} setStockOeufs={setStockOeufs} />
+
           <FormVente
             onSave={(v) => {
               setVentes(p => [v, ...p]);
@@ -1321,6 +1445,8 @@ function PontePage({ setPage, poulailler, ventes, setVentes }) {
               {alveoles < 30 ? "⚠️ Stock bas — pensez à en racheter !" : `Suffisant pour ${Math.floor(alveoles / (DATA.ponte.auj/PLATEAU)).toFixed(0)} jour(s)`}
             </div>
           </div>
+
+          <UpdateAlveolesStockWidget alveoles={alveoles} setAlveoles={setAlveoles} />
 
           {/* Ajouter des alvéoles */}
           <div style={{ background: T.cardVert, borderRadius:16, padding:"16px", marginBottom:14, border:`1px solid rgba(13,122,56,0.15)` }}>
