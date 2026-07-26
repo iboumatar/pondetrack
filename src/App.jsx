@@ -314,8 +314,8 @@ function Placeholder({ title, ico }) {
 function DashboardPage({ setPage, darkMode, setDarkMode, poulailler, consoJours, updateConso, consoTotale, poulaillers, nomFerme, setAppState, stockKgGlobal }) {
   const cTotale    = consoTotale || 0;
   const stockBrut  = stockKgGlobal || 0;
-  const now        = new Date();
-  const heure      = now.getHours() + now.getMinutes()/60;
+  const _now       = new Date();
+  const heure      = _now.getHours() + _now.getMinutes()/60;
   const rationM    = Math.round(cTotale * 0.5);
   const rationS    = Math.round(cTotale * 0.5);
   let   stockEst   = stockBrut;
