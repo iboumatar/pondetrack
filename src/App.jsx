@@ -1546,14 +1546,13 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
   // Stock estimé selon l'heure (distributions auto)
   const getStockEstimePage = () => {
     const heure = new Date().getHours() + new Date().getMinutes()/60;
-    const rationM = Math.round((consoTotale||378) * 0.6);
-    const rationS = Math.round((consoTotale||378) * 0.4);
+    const rationM = Math.round(consoReference * 0.6);
+    const rationS = Math.round(consoReference * 0.4);
     let est = stockKg;
     if (heure >= 8)  est -= rationM;
     if (heure >= 16) est -= rationS;
     return Math.max(0, est);
   };
-  const [consoJour, setConsoJour]     = useState(230);
   const [seuilAlerte, setSeuilAlerte] = useState(7);  // jours
   const [showConfig, setShowConfig]   = useState(false);
 
@@ -1578,18 +1577,27 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
   // Historique mouvements
   const [historique, setHistorique]   = useState([]);
 
-  const autonomie   = Math.floor(stockKg / (consoTotale || consoJour));
+  const consoReference = consoTotale || listePoulaillers.reduce((sum, p) => sum + toNumber(p.consoJour), 0);
+  const totalPoules = listePoulaillers.reduce((sum, p) => sum + toNumber(p.effectif?.pondeuses), 0);
+  const grammesParPoule = totalPoules > 0 ? Math.round((consoReference / totalPoules) * 1000) : 0;
+  const statutRation = totalPoules <= 0
+    ? { label:"Effectif à renseigner", color:T.warning }
+    : grammesParPoule >= 100 && grammesParPoule <= 130
+      ? { label:"✓ Normal (100-130g)", color:T.vitals }
+      : grammesParPoule < 100
+        ? { label:"⚠️ Trop faible", color:T.warning }
+        : { label:"⚠️ Trop élevé", color:T.warning };
+
+  const autonomie   = consoReference > 0 ? Math.floor(stockKg / consoReference) : 0;
   const rupture     = new Date();
-  rupture.setDate(rupture.getDate() + autonomie);
-  const ruptureStr  = rupture.toLocaleDateString("fr-FR", { day:"numeric", month:"long" });
+  if (consoReference > 0) rupture.setDate(rupture.getDate() + autonomie);
+  const ruptureStr  = consoReference > 0 ? rupture.toLocaleDateString("fr-FR", { day:"numeric", month:"long" }) : "à définir";
   const critique    = autonomie <= seuilAlerte;
   const pctStock    = Math.min(Math.round(stockKg / 2000 * 100), 100);
 
   const sacsStock   = Math.floor(stockKg / SAC_KG);
   const resteKg     = stockKg % SAC_KG;
   const sacsDecimal = (stockKg / SAC_KG).toFixed(1);
-
-  const gPP = Math.round((consoJour / DATA.effectif.pondeuses) * 1000);
 
   const handleLivraison = () => {
     const sacs = parseInt(livrSacs) || 0;
@@ -1612,7 +1620,6 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
     });
     const total = details.reduce((sum, p) => sum + p.total, 0);
     if (!total) return;
-    setConsoJour(total);
     details.forEach((p) => updateConso?.(p.id, p.total));
     setHistorique(p => [{
       id: Date.now(), type:"consommation", date:new Date().toISOString().slice(0,10),
@@ -1732,23 +1739,23 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
               <div style={{ flex:1, background:"rgba(255,255,255,0.65)", borderRadius:12, padding:"12px", textAlign:"center" }}>
                 <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Total / jour</div>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:4 }}>
-                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{(consoJour/SAC_KG).toFixed(1)}</span>
+                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{(consoReference/SAC_KG).toFixed(1)}</span>
                   <span style={{ fontSize:12, fontWeight:700, color:T.textSub }}>sacs</span>
                 </div>
                 <div style={{ fontSize:12, color:T.textSub, marginTop:2, fontWeight:700 }}>
-                  {Math.floor(consoJour/SAC_KG)} sacs + {consoJour%SAC_KG} kg
+                  {Math.floor(consoReference/SAC_KG)} sacs + {consoReference%SAC_KG} kg
                 </div>
-                <div style={{ fontSize:11, color:T.textMuted }}>{fmt(consoJour)} kg/jour</div>
+                <div style={{ fontSize:11, color:T.textMuted }}>{fmt(consoReference)} kg/jour</div>
               </div>
               <div style={{ flex:1, background:"rgba(255,255,255,0.65)", borderRadius:12, padding:"12px", textAlign:"center" }}>
                 <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Par poule / jour</div>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:4 }}>
-                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{gPP}</span>
+                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{grammesParPoule}</span>
                   <span style={{ fontSize:12, fontWeight:700, color:T.textSub }}>g</span>
                 </div>
-                <div style={{ fontSize:12, color:T.textSub, marginTop:2 }}>{fmt(DATA.effectif.pondeuses)} poules</div>
-                <div style={{ fontSize:11, fontWeight:700, color: gPP>=100&&gPP<=130 ? T.vitals : T.warning, marginTop:2 }}>
-                  {gPP>=100&&gPP<=130 ? "✓ Normal (100-130g)" : gPP<100 ? "⚠️ Trop faible" : "⚠️ Trop élevé"}
+                <div style={{ fontSize:12, color:T.textSub, marginTop:2 }}>{fmt(totalPoules)} poules</div>
+                <div style={{ fontSize:11, fontWeight:700, color: statutRation.color, marginTop:2 }}>
+                  {statutRation.label}
                 </div>
               </div>
             </div>
@@ -1759,7 +1766,7 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
           {/* Distributions du jour */}
           {(() => {
             const heure   = new Date().getHours() + new Date().getMinutes()/60;
-            const conso   = consoTotale || 378;
+            const conso   = consoReference;
             const rationM = Math.round(conso * 0.5);
             const rationS = Math.round(conso * 0.5);
             const estim   = getStockEstimePage();
