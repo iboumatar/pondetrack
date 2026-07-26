@@ -1576,17 +1576,54 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
 
   // Historique mouvements
   const [historique, setHistorique]   = useState([]);
+  const [consoSlideId, setConsoSlideId] = useState("total");
 
   const consoReference = consoTotale || listePoulaillers.reduce((sum, p) => sum + toNumber(p.consoJour), 0);
-  const totalPoules = listePoulaillers.reduce((sum, p) => sum + toNumber(p.effectif?.pondeuses), 0);
-  const grammesParPoule = totalPoules > 0 ? Math.round((consoReference / totalPoules) * 1000) : 0;
-  const statutRation = totalPoules <= 0
+  const getStatutRation = (poules, grammes) => poules <= 0
     ? { label:"Effectif à renseigner", color:T.warning }
-    : grammesParPoule >= 100 && grammesParPoule <= 130
+    : grammes >= 100 && grammes <= 130
       ? { label:"✓ Normal (100-130g)", color:T.vitals }
-      : grammesParPoule < 100
+      : grammes < 100
         ? { label:"⚠️ Trop faible", color:T.warning }
         : { label:"⚠️ Trop élevé", color:T.warning };
+  const consoSlidesPoulaillers = listePoulaillers.map((p) => {
+    const consoKg = Math.max(0, Math.round(toNumber(consoJours?.[p.id], p.consoJour)));
+    const poules = Math.max(0, Math.round(toNumber(p.effectif?.pondeuses)));
+    const grammes = poules > 0 ? Math.round((consoKg / poules) * 1000) : 0;
+    return {
+      id: p.id,
+      titre: p.nom,
+      badge: p.id,
+      ico: p.ico,
+      couleur: p.couleur,
+      consoKg,
+      poules,
+      grammes,
+      statut: getStatutRation(poules, grammes),
+    };
+  });
+  const totalPoules = consoSlidesPoulaillers.reduce((sum, p) => sum + p.poules, 0);
+  const grammesTotal = totalPoules > 0 ? Math.round((consoReference / totalPoules) * 1000) : 0;
+  const consoSlides = [
+    ...consoSlidesPoulaillers,
+    {
+      id: "total",
+      titre: "Total",
+      badge: "Total",
+      ico: "🌾",
+      couleur: T.amber,
+      consoKg: consoReference,
+      poules: totalPoules,
+      grammes: grammesTotal,
+      statut: getStatutRation(totalPoules, grammesTotal),
+    },
+  ];
+  const consoSlideIndex = Math.max(0, consoSlides.findIndex((s) => s.id === consoSlideId));
+  const consoActive = consoSlides[consoSlideIndex] || consoSlides[consoSlides.length - 1];
+  const moveConsoSlide = (offset) => {
+    const next = (consoSlideIndex + offset + consoSlides.length) % consoSlides.length;
+    setConsoSlideId(consoSlides[next].id);
+  };
 
   const autonomie   = consoReference > 0 ? Math.floor(stockKg / consoReference) : 0;
   const rupture     = new Date();
@@ -1732,30 +1769,64 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
 
           {/* Conso journalière */}
           <div style={{ background: T.cardAmbre, borderRadius:16, padding:"16px", marginBottom:14, border:`1px solid rgba(224,147,18,0.2)` }}>
-            <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:12 }}>
-              🌾 Consommation journalière
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700 }}>
+                  🌾 Consommation journalière
+                </div>
+                <div style={{ fontSize:13, color:consoActive.couleur, fontWeight:900, marginTop:4 }}>
+                  {consoActive.ico} {consoActive.titre}
+                </div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <button onClick={() => moveConsoSlide(-1)} style={{
+                  width:32, height:32, borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"rgba(255,255,255,0.75)", color:T.textSub, cursor:"pointer",
+                  fontSize:18, fontWeight:900, lineHeight:1
+                }}>‹</button>
+                <div style={{ fontSize:11, color:T.textMuted, fontWeight:800, minWidth:34, textAlign:"center" }}>
+                  {consoSlideIndex + 1}/{consoSlides.length}
+                </div>
+                <button onClick={() => moveConsoSlide(1)} style={{
+                  width:32, height:32, borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"rgba(255,255,255,0.75)", color:T.textSub, cursor:"pointer",
+                  fontSize:18, fontWeight:900, lineHeight:1
+                }}>›</button>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+              {consoSlides.map((slide) => (
+                <button key={slide.id} onClick={() => setConsoSlideId(slide.id)} style={{
+                  flex:1, minWidth:0, border:"none", borderRadius:10, padding:"8px 6px",
+                  cursor:"pointer", background: consoActive.id === slide.id ? slide.couleur : "rgba(255,255,255,0.65)",
+                  color: consoActive.id === slide.id ? "#fff" : T.textSub,
+                  fontSize:11, fontWeight:900
+                }}>
+                  {slide.badge}
+                </button>
+              ))}
             </div>
             <div style={{ display:"flex", gap:10 }}>
               <div style={{ flex:1, background:"rgba(255,255,255,0.65)", borderRadius:12, padding:"12px", textAlign:"center" }}>
-                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Total / jour</div>
+                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Conso / jour</div>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:4 }}>
-                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{(consoReference/SAC_KG).toFixed(1)}</span>
+                  <span style={{ fontSize:26, fontWeight:900, color:consoActive.couleur }}>{(consoActive.consoKg/SAC_KG).toFixed(1)}</span>
                   <span style={{ fontSize:12, fontWeight:700, color:T.textSub }}>sacs</span>
                 </div>
                 <div style={{ fontSize:12, color:T.textSub, marginTop:2, fontWeight:700 }}>
-                  {Math.floor(consoReference/SAC_KG)} sacs + {consoReference%SAC_KG} kg
+                  {Math.floor(consoActive.consoKg/SAC_KG)} sacs + {consoActive.consoKg%SAC_KG} kg
                 </div>
-                <div style={{ fontSize:11, color:T.textMuted }}>{fmt(consoReference)} kg/jour</div>
+                <div style={{ fontSize:11, color:T.textMuted }}>{fmt(consoActive.consoKg)} kg/jour</div>
               </div>
               <div style={{ flex:1, background:"rgba(255,255,255,0.65)", borderRadius:12, padding:"12px", textAlign:"center" }}>
                 <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Par poule / jour</div>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:4 }}>
-                  <span style={{ fontSize:26, fontWeight:900, color:T.amber }}>{grammesParPoule}</span>
+                  <span style={{ fontSize:26, fontWeight:900, color:consoActive.couleur }}>{consoActive.grammes}</span>
                   <span style={{ fontSize:12, fontWeight:700, color:T.textSub }}>g</span>
                 </div>
-                <div style={{ fontSize:12, color:T.textSub, marginTop:2 }}>{fmt(totalPoules)} poules</div>
-                <div style={{ fontSize:11, fontWeight:700, color: statutRation.color, marginTop:2 }}>
-                  {statutRation.label}
+                <div style={{ fontSize:12, color:T.textSub, marginTop:2 }}>{fmt(consoActive.poules)} poules</div>
+                <div style={{ fontSize:11, fontWeight:700, color: consoActive.statut.color, marginTop:2 }}>
+                  {consoActive.statut.label}
                 </div>
               </div>
             </div>
