@@ -82,7 +82,101 @@ const PAGES_NAV = [
   { id: "finances",  ico: "💰", label: "Finances" },
 ];
 
+const PLATEAU = 30;
+const SAC_KG = 50;
+const DEFAULT_COLORS = ["#16A34A", "#2563EB", "#D97706", "#9333EA", "#DC2626", "#0891B2"];
+const DEFAULT_ICONS = ["🐔", "🐓", "🐣", "🦆", "🐧", "🦉"];
+
 function fmt(n) { return new Intl.NumberFormat("fr-FR").format(n); }
+
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function calcAgeSemaines(date) {
+  const d = new Date(`${date || DATA.effectif.misEnPlace}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+}
+
+function toSacs(kg) {
+  const total = Math.max(0, Math.floor(toNumber(kg)));
+  return {
+    pleins: Math.floor(total / SAC_KG),
+    resteKg: total % SAC_KG,
+  };
+}
+
+function dateRupture(stockKg, consoJour = 0) {
+  const stock = Math.max(0, toNumber(stockKg));
+  const conso = Math.max(0, toNumber(consoJour));
+  if (conso <= 0) {
+    return { jours: 0, date: "à définir", critique: true };
+  }
+  const jours = Math.floor(stock / conso);
+  const rupture = new Date();
+  rupture.setDate(rupture.getDate() + jours);
+  return {
+    jours,
+    date: rupture.toLocaleDateString("fr-FR", { day: "numeric", month: "long" }),
+    critique: jours <= 2,
+  };
+}
+
+function normalizePoulailler(raw, key = "A", index = 0) {
+  const p = raw && typeof raw === "object" ? raw : {};
+  const id = String(p.id || key || String.fromCharCode(65 + index)).toUpperCase();
+  const capacite = Math.max(0, Math.floor(toNumber(p.capacite, p.effectif?.pondeuses || 0)));
+  const pondeuses = Math.max(0, Math.floor(toNumber(p.effectif?.pondeuses, capacite)));
+  const consoJour = Math.max(0, Math.round(toNumber(p.consoJour, pondeuses * 0.11)));
+  const misEnPlace = p.effectif?.misEnPlace || DATA.effectif.misEnPlace;
+  const semaine = Array.isArray(p.ponte?.semaine) ? p.ponte.semaine.map(v => toNumber(v)).slice(-7) : [];
+
+  return {
+    id,
+    nom: p.nom || `Poulailler ${id}`,
+    couleur: p.couleur || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+    ico: p.ico || DEFAULT_ICONS[index % DEFAULT_ICONS.length],
+    capacite,
+    ponte: {
+      auj: toNumber(p.ponte?.auj),
+      hier: toNumber(p.ponte?.hier),
+      objectif: Math.max(0, Math.round(toNumber(p.ponte?.objectif, pondeuses * 0.85))),
+      taux: Math.max(0, Math.min(100, Math.round(toNumber(p.ponte?.taux)))),
+      semaine: [...Array(Math.max(0, 7 - semaine.length)).fill(0), ...semaine],
+      dateSaisie: p.ponte?.dateSaisie || "",
+    },
+    effectif: {
+      total: Math.max(0, Math.floor(toNumber(p.effectif?.total, pondeuses))),
+      pondeuses,
+      mortalite: Math.max(0, Math.floor(toNumber(p.effectif?.mortalite))),
+      misEnPlace,
+    },
+    consoJour,
+    oeufsDispos: Math.max(0, Math.floor(toNumber(p.oeufsDispos))),
+    derniereVente: p.derniereVente || { date: "", qte: 0 },
+  };
+}
+
+function normalizePoulaillers(value) {
+  const entries = Array.isArray(value)
+    ? value.map((p, i) => [p?.id || String.fromCharCode(65 + i), p])
+    : Object.entries(value && typeof value === "object" ? value : {});
+  return entries.reduce((acc, [key, p], index) => {
+    const normalized = normalizePoulailler(p, key, index);
+    acc[normalized.id] = normalized;
+    return acc;
+  }, {});
+}
+
+function normalizeConsoJours(value, poulaillers) {
+  const saved = value && typeof value === "object" ? value : {};
+  return Object.values(poulaillers || {}).reduce((acc, p) => {
+    acc[p.id] = Math.max(0, Math.round(toNumber(saved[p.id], p.consoJour)));
+    return acc;
+  }, {});
+}
 
 // ── Courbe animée ─────────────────────────────────────────────────────────────
 function PonteCurve({ data, unite = 'plat.' }) {
@@ -393,7 +487,7 @@ function DashboardPage({ setPage, darkMode, setDarkMode, poulailler, consoJours,
         {/* Ligne 2 : stock aliment fusionné dans le header */}
         {(() => {
           const sacs    = toSacs(d.stock.aliment);
-          const rupture = dateRupture(d.stock.aliment);
+          const rupture = dateRupture(d.stock.aliment, d.stock.consoJour);
           const col     = rupture.critique ? T.danger : T.amber;
           return (
             <div onClick={() => setPage("stock")} style={{
@@ -4492,7 +4586,7 @@ function getStockEstime(kg, conso) {
 
 // ── PAGE SÉLECTION POULAILLER ─────────────────────────────────────────────────
 function SelectionPoulailler({ onSelect, poulaillerActif, consoJours, consoTotale, poulaillers, onAjouter, onSupprimer }) {
-  const liste                       = Object.values(poulaillers || POULAILLERS_INIT);
+  const liste                       = Object.values(normalizePoulaillers(poulaillers || POULAILLERS_INIT));
   const [showForm, setShowForm]     = useState(false);
   const [fId,      setFId]          = useState('');
   const [fNom,     setFNom]         = useState('');
@@ -4688,14 +4782,14 @@ function SelectionPoulailler({ onSelect, poulaillerActif, consoJours, consoTotal
 
         {/* Stock commun */}
         {(() => {
-          const ct  = consoTotale || liste.reduce((s,p)=>s+p.consoJour,0);
+          const ct  = consoTotale || liste.reduce((s,p)=>s+toNumber(p.consoJour),0);
           const sacs = Math.floor(STOCK_COMMUN.aliment / SAC_KG);
           const resteKg     = STOCK_COMMUN.aliment % SAC_KG;
-          const autonomie   = Math.floor(STOCK_COMMUN.aliment / ct);
+          const autonomie   = ct > 0 ? Math.floor(STOCK_COMMUN.aliment / ct) : 0;
           const critique    = autonomie <= 2;
           const rupture     = new Date();
-          rupture.setDate(rupture.getDate() + autonomie);
-          const ruptureStr  = rupture.toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
+          if (ct > 0) rupture.setDate(rupture.getDate() + autonomie);
+          const ruptureStr  = ct > 0 ? rupture.toLocaleDateString("fr-FR",{day:"numeric",month:"long"}) : "à définir";
           return (
             <div style={{ background: critique ? T.cardRouge : T.cardAmbre, borderRadius:16, padding:"16px",
               marginBottom:14, border:`1px solid ${critique ? T.danger+"44" : "rgba(224,147,18,0.2)"}`,
@@ -4798,10 +4892,10 @@ export default function App() {
   };
 
   // Liste dynamique des poulaillers
-  const [poulaillers,  setPoulaillers]  = useState(() => getSaved("pondetrack_poulaillers", POULAILLERS_INIT));
+  const [poulaillers,  setPoulaillers]  = useState(() => normalizePoulaillers(getSaved("pondetrack_poulaillers", POULAILLERS_INIT)));
 
   // Consommation journalière — DOIT être défini avant ajouterPoulailler
-  const [consoJours, setConsoJours] = useState(() => getSaved("pondetrack_conso", {}));
+  const [consoJours, setConsoJours] = useState(() => normalizeConsoJours(getSaved("pondetrack_conso", {}), poulaillers));
 
   const ajouterPoulailler = (id, nom, capacite, misEnPlace) => {
     const couleurs = ["#16A34A","#2563EB","#D97706","#9333EA","#DC2626","#0891B2"];
@@ -4840,7 +4934,7 @@ export default function App() {
   };
 
   // Conso totale = somme de tous les poulaillers
-  const consoTotale = Object.values(consoJours).reduce((s, v) => s + v, 0);
+  const consoTotale = Object.values(consoJours).reduce((s, v) => s + toNumber(v), 0);
 
   const theme = darkMode ? DARK : LIGHT;
   Object.assign(T, theme);
@@ -4852,14 +4946,16 @@ export default function App() {
   const [ventesGlobal, setVentesGlobal] = useState([]);
 
   const handleOnboardingFinish = ({ ferme, poulaillers: newP, consoJours: newC }) => {
+    const normalizedPoulaillers = normalizePoulaillers(newP);
+    const normalizedConso = normalizeConsoJours(newC, normalizedPoulaillers);
     setNomFerme(ferme.nom);
-    setPoulaillers(newP);
-    setConsoJours(newC);
+    setPoulaillers(normalizedPoulaillers);
+    setConsoJours(normalizedConso);
     // Sauvegarder config dans localStorage
     localStorage.setItem("pondetrack_onboarding_done", "true");
     localStorage.setItem("pondetrack_ferme_nom", ferme.nom);
-    localStorage.setItem("pondetrack_poulaillers", JSON.stringify(newP));
-    localStorage.setItem("pondetrack_conso", JSON.stringify(newC));
+    localStorage.setItem("pondetrack_poulaillers", JSON.stringify(normalizedPoulaillers));
+    localStorage.setItem("pondetrack_conso", JSON.stringify(normalizedConso));
     setAppState("app");
     setPage("selection");
   };
