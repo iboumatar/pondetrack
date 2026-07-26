@@ -1,11 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-// Client Supabase global
-const supabaseClient = createClient(
-  "https://smqqhoqvsmfzmbtvvyyt.supabase.co",
-  "sb_publishable_EUjtyBrK7pingBbr4yTKIw_G2CHEghD"
-);
+import { supabase as supabaseClient } from "./supabase/client";
 
 const LIGHT = {
   bg:          "#F8FAF9",
