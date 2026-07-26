@@ -2203,17 +2203,33 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
 
 
 // ── PAGE EFFECTIF ─────────────────────────────────────────────────────────────
-function EffectifPage({ setPage, poulailler }) {
+function EffectifPage({ setPage, poulailler, poulaillers }) {
 
   const [activeTab, setActiveTab] = useState("vue");
+  const listePoulaillers = Object.values(normalizePoulaillers(
+    poulaillers || (poulailler ? { [poulailler.id]: poulailler } : POULAILLERS_INIT)
+  ));
+  const [selectedPoulaillerId, setSelectedPoulaillerId] = useState(poulailler?.id || listePoulaillers[0]?.id || "A");
+  const selectedPoulailler = listePoulaillers.find(p => p.id === selectedPoulaillerId) || listePoulaillers[0];
 
   // État principal du lot
-  const [lot, setLot] = useState({
-    effectif:    poulailler ? poulailler.effectif.pondeuses : 2100,
-    misEnPlace:  poulailler ? poulailler.effectif.misEnPlace : "2025-01-20",
-    race:        "ISA Brown",
+  const [lots, setLots] = useState(() => (
+    listePoulaillers.reduce((acc, p) => {
+      acc[p.id] = {
+        effectif:    p.effectif.pondeuses,
+        misEnPlace:  p.effectif.misEnPlace,
+        race:        "ISA Brown",
+        fournisseur: "Ferme Diallo",
+      };
+      return acc;
+    }, {})
+  ));
+  const lot = lots[selectedPoulaillerId] || {
+    effectif: selectedPoulailler?.effectif?.pondeuses || 0,
+    misEnPlace: selectedPoulailler?.effectif?.misEnPlace || "2025-01-20",
+    race: "ISA Brown",
     fournisseur: "Ferme Diallo",
-  });
+  };
 
   // Historique mortalité
   const [mortalites, setMortalites] = useState([]);
@@ -2232,12 +2248,19 @@ function EffectifPage({ setPage, poulailler }) {
   const [editMEP,    setEditMEP]    = useState(false);
   const [newMEP,     setNewMEP]     = useState(lot.misEnPlace);
 
+  useEffect(() => {
+    setNewMEP(lot.misEnPlace);
+    setEditMEP(false);
+  }, [selectedPoulaillerId, lot.misEnPlace]);
+
   // Calculs
+  const mouvementsPoulailler = mortalites.filter(m => (m.poulaillerId || selectedPoulaillerId) === selectedPoulaillerId);
   const ageSemaines = calcAgeSemaines(lot.misEnPlace);
   const ageJours    = Math.floor((new Date() - new Date(lot.misEnPlace)) / 86400000);
   const moisAge     = Math.floor(ageSemaines / 4.33);
-  const mortTotale  = mortalites.reduce((s, m) => s + m.nb, 0);
-  const mortPct     = ((mortTotale / (lot.effectif + mortTotale)) * 100).toFixed(2);
+  const mortTotale  = mouvementsPoulailler.filter(m => m.nb > 0).reduce((s, m) => s + m.nb, 0);
+  const baseMort    = lot.effectif + mortTotale;
+  const mortPct     = baseMort > 0 ? ((mortTotale / baseMort) * 100).toFixed(2) : "0.00";
 
   // Phase de production selon âge
   const getPhase = (sem) => {
@@ -2252,16 +2275,34 @@ function EffectifPage({ setPage, poulailler }) {
   const handleMortalite = () => {
     const nb = parseInt(mortNb) || 0;
     if (!nb) return;
-    setLot(p => ({ ...p, effectif: Math.max(0, p.effectif - nb) }));
-    setMortalites(p => [{ id:Date.now(), date:mortDate, nb, cause:mortCause }, ...p]);
+    setLots(prev => ({
+      ...prev,
+      [selectedPoulaillerId]: { ...lot, effectif: Math.max(0, lot.effectif - nb) },
+    }));
+    setMortalites(p => [{
+      id:Date.now(), date:mortDate, nb, cause:mortCause,
+      poulaillerId:selectedPoulaillerId,
+      poulaillerNom:selectedPoulailler?.nom || `Poulailler ${selectedPoulaillerId}`,
+      poulaillerIco:selectedPoulailler?.ico || "🐔",
+      poulaillerCouleur:selectedPoulailler?.couleur || T.vitals,
+    }, ...p]);
     setMortNb("");
   };
 
   const handleEntree = () => {
     const nb = parseInt(entreeNb) || 0;
     if (!nb) return;
-    setLot(p => ({ ...p, effectif: p.effectif + nb }));
-    setMortalites(p => [{ id:Date.now(), date:entreeDate, nb:-nb, cause:`Entrée : ${entreeNote||"nouveau lot"}` }, ...p]);
+    setLots(prev => ({
+      ...prev,
+      [selectedPoulaillerId]: { ...lot, effectif: lot.effectif + nb },
+    }));
+    setMortalites(p => [{
+      id:Date.now(), date:entreeDate, nb:-nb, cause:`Entrée : ${entreeNote||"nouveau lot"}`,
+      poulaillerId:selectedPoulaillerId,
+      poulaillerNom:selectedPoulailler?.nom || `Poulailler ${selectedPoulaillerId}`,
+      poulaillerIco:selectedPoulailler?.ico || "🐔",
+      poulaillerCouleur:selectedPoulailler?.couleur || T.vitals,
+    }, ...p]);
     setEntreeNb(""); setEntreeNote("");
   };
 
@@ -2282,7 +2323,7 @@ function EffectifPage({ setPage, poulailler }) {
           <div>
             <div style={{ fontSize:11, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em" }}>Module</div>
             <div style={{ fontSize:20, fontWeight:800, color:T.textPrimary }}>🐔 Gestion Effectif</div>
-            {poulailler && <div style={{ fontSize:11, color:T.textSub, marginTop:2 }}>{poulailler.ico} {poulailler.nom}</div>}
+            {selectedPoulailler && <div style={{ fontSize:11, color:T.textSub, marginTop:2 }}>{selectedPoulailler.ico} {selectedPoulailler.nom}</div>}
           </div>
         </div>
 
@@ -2321,7 +2362,10 @@ function EffectifPage({ setPage, poulailler }) {
                 <input type="date" value={newMEP} onChange={e=>setNewMEP(e.target.value)}
                   style={{ flex:1, padding:"8px 12px", borderRadius:10, border:`1px solid ${T.border}`,
                     fontSize:13, color:T.textPrimary }} />
-                <button onClick={() => { setLot(p=>({...p, misEnPlace:newMEP})); setEditMEP(false); }} style={{
+                <button onClick={() => {
+                  setLots(prev => ({ ...prev, [selectedPoulaillerId]: { ...lot, misEnPlace:newMEP } }));
+                  setEditMEP(false);
+                }} style={{
                   background:T.vitals, color:"#fff", border:"none", borderRadius:10,
                   padding:"8px 16px", fontWeight:800, fontSize:13, cursor:"pointer"
                 }}>✓</button>
@@ -2439,6 +2483,16 @@ function EffectifPage({ setPage, poulailler }) {
             <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:12 }}>
               📉 Enregistrer une mortalité
             </div>
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Poulailler</div>
+              <select value={selectedPoulaillerId} onChange={e=>setSelectedPoulaillerId(e.target.value)}
+                style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:`1px solid ${T.border}`,
+                  background:"rgba(255,255,255,0.8)", fontSize:13, fontWeight:800,
+                  color:selectedPoulailler?.couleur || T.textPrimary, boxSizing:"border-box" }}>
+                {listePoulaillers.map(p =>
+                  <option key={p.id} value={p.id}>{p.ico} {p.nom}</option>)}
+              </select>
+            </div>
             <div style={{ display:"flex", gap:10, marginBottom:10 }}>
               <div style={{ flex:2 }}>
                 <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Date</div>
@@ -2473,7 +2527,7 @@ function EffectifPage({ setPage, poulailler }) {
           <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:10 }}>
             Mortalités récentes
           </div>
-          {mortalites.filter(m=>m.nb>0).map(m => (
+          {mouvementsPoulailler.filter(m=>m.nb>0).map(m => (
             <div key={m.id} style={{ background:T.cardSauge, borderRadius:12, padding:"11px 14px",
               display:"flex", alignItems:"center", gap:12, marginBottom:8, border:`1px solid ${T.border}` }}>
               <div style={{ width:36, height:36, borderRadius:10, background:T.danger+"15",
@@ -2481,7 +2535,7 @@ function EffectifPage({ setPage, poulailler }) {
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:T.textPrimary }}>{m.cause}</div>
                 <div style={{ fontSize:11, color:T.textMuted }}>
-                  {new Date(m.date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}
+                  {(m.poulaillerIco || selectedPoulailler?.ico || "🐔")} {(m.poulaillerNom || selectedPoulailler?.nom || "Poulailler")} · {new Date(m.date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}
                 </div>
               </div>
               <div style={{ fontSize:16, fontWeight:900, color:T.danger }}>-{m.nb}</div>
@@ -2539,7 +2593,7 @@ function EffectifPage({ setPage, poulailler }) {
           <div style={{ fontSize:12, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:12 }}>
             Tous les mouvements
           </div>
-          {mortalites.map(m => {
+          {mouvementsPoulailler.map(m => {
             const isEntree = m.nb < 0;
             return (
               <div key={m.id} style={{ background: isEntree ? T.cardVert : T.cardSauge,
@@ -2554,7 +2608,7 @@ function EffectifPage({ setPage, poulailler }) {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:T.textPrimary }}>{m.cause}</div>
                   <div style={{ fontSize:11, color:T.textMuted }}>
-                    {new Date(m.date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
+                    {(m.poulaillerIco || selectedPoulailler?.ico || "🐔")} {(m.poulaillerNom || selectedPoulailler?.nom || "Poulailler")} · {new Date(m.date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
                   </div>
                 </div>
                 <div style={{ fontSize:15, fontWeight:900, color: isEntree ? T.vitals : T.danger }}>
@@ -5240,7 +5294,7 @@ export default function App() {
       case "ponte":     return <PontePage setPage={setPage} poulailler={poulaillerActif} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "sante":     return <SantePage setPage={setPage} />;
       case "stock":     return <StockPage setPage={setPage} consoTotale={consoTotale} consoJours={consoJours} updateConso={updateConso} poulaillers={poulaillers} stockKgGlobal={stockKgGlobal} setStockKgGlobal={setStockKgGlobal} />;
-      case "effectif":  return <EffectifPage setPage={setPage} poulailler={poulaillerActif} />;
+      case "effectif":  return <EffectifPage setPage={setPage} poulailler={poulaillerActif} poulaillers={poulaillers} />;
       case "finances":  return <FinancePage setPage={setPage} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "parametres": return <SettingsPage setPage={setPage} user={user} setUser={setUser} setAppState={setAppState} nomFerme={nomFerme} setNomFerme={setNomFerme} darkMode={darkMode} setDarkMode={setDarkMode} />;
       default: return null;
