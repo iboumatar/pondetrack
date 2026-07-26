@@ -1480,7 +1480,11 @@ function FormVente({ onSave, stockOeufs, setStockOeufs }) {
 // ── WIDGET MISE À JOUR STOCK ──────────────────────────────────────────────────
 function UpdateStockWidget({ stockKg, setStock }) {
   const [show,     setShow]     = useState(false);
-  const [newStock, setNewStock] = useState("");
+  const [stockSacs, setStockSacs] = useState("");
+  const [stockKgPlus, setStockKgPlus] = useState("");
+  const sacs = Math.max(0, parseInt(stockSacs) || 0);
+  const kgPlus = Math.max(0, parseInt(stockKgPlus) || 0);
+  const totalKg = sacs * SAC_KG + kgPlus;
 
   return (
     <div style={{ background:T.cardVert, borderRadius:16, padding:"14px 16px",
@@ -1505,26 +1509,40 @@ function UpdateStockWidget({ stockKg, setStock }) {
       {show && (
         <div style={{ marginTop:12 }}>
           <div style={{ fontSize:11, color:T.textMuted, marginBottom:6 }}>
-            Entrez le stock réel en kg (ex: 1200 = 24 sacs)
+            Entrez le stock réel disponible. Cette valeur remplace le stock actuel.
           </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <input type="number" value={newStock}
-              onChange={e => setNewStock(e.target.value)}
-              placeholder="0"
-              style={{ flex:1, padding:"10px 14px", borderRadius:10,
-                border:`1px solid ${T.vitals}55`, background:"rgba(255,255,255,0.9)",
-                fontSize:20, fontWeight:900, color:T.vitals, boxSizing:"border-box" }} />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end" }}>
+            <div>
+              <div style={{ fontSize:10, color:T.textMuted, marginBottom:4 }}>Sacs (50 kg)</div>
+              <input type="number" min="0" value={stockSacs}
+                onChange={e => setStockSacs(e.target.value)}
+                placeholder="20"
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10,
+                  border:`1px solid ${T.vitals}55`, background:"rgba(255,255,255,0.9)",
+                  fontSize:20, fontWeight:900, color:T.vitals, boxSizing:"border-box" }} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:T.textMuted, marginBottom:4 }}>Kg en plus</div>
+              <input type="number" min="0" max="49" value={stockKgPlus}
+                onChange={e => setStockKgPlus(e.target.value)}
+                placeholder="0"
+                style={{ width:"100%", padding:"10px 12px", borderRadius:10,
+                  border:`1px solid ${T.vitals}55`, background:"rgba(255,255,255,0.9)",
+                  fontSize:20, fontWeight:900, color:T.vitals, boxSizing:"border-box" }} />
+            </div>
             <button onClick={() => {
-              const kg = parseInt(newStock) || 0;
-              if (kg >= 0) { setStock(kg); setShow(false); setNewStock(""); }
+              setStock(totalKg);
+              setShow(false);
+              setStockSacs("");
+              setStockKgPlus("");
             }} style={{
               background:T.vitals, color:"#fff", border:"none",
-              borderRadius:10, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer"
+              borderRadius:10, padding:"12px 16px", fontSize:16, fontWeight:800, cursor:"pointer"
             }}>✓</button>
           </div>
-          {newStock && (
+          {(stockSacs || stockKgPlus) && (
             <div style={{ fontSize:11, color:T.vitals, marginTop:6, fontWeight:700 }}>
-              = {Math.floor((parseInt(newStock)||0)/SAC_KG)} sacs + {(parseInt(newStock)||0)%SAC_KG} kg restants
+              = {fmt(totalKg)} kg au total
             </div>
           )}
         </div>
@@ -1766,6 +1784,7 @@ function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers,
       {/* ── TAB STOCK SYNTHESE ── */}
       {activeTab === "stock" && (
         <div style={{ padding:"16px 18px 0" }}>
+          <UpdateStockWidget stockKg={stockKg} setStock={setStock} />
 
           {/* Conso journalière */}
           <div style={{ background: T.cardAmbre, borderRadius:16, padding:"16px", marginBottom:14, border:`1px solid rgba(224,147,18,0.2)` }}>
@@ -5015,7 +5034,14 @@ export default function App() {
   Object.assign(T, theme);
 
   // Stock aliment global partagé entre Dashboard et StockPage
-  const [stockKgGlobal, setStockKgGlobal] = useState(0);
+  const [stockKgGlobal, setStockKgGlobalRaw] = useState(() => Math.max(0, Math.round(toNumber(getSaved("pondetrack_stock_kg", 0)))));
+  const setStockKgGlobal = (val) => {
+    setStockKgGlobalRaw(prev => {
+      const next = Math.max(0, Math.round(toNumber(typeof val === "function" ? val(prev) : val)));
+      try { localStorage.setItem("pondetrack_stock_kg", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   // État ventes partagé entre Ponte et Finances
   const [ventesGlobal, setVentesGlobal] = useState([]);
