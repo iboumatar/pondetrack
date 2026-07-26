@@ -1534,7 +1534,7 @@ function UpdateStockWidget({ stockKg, setStock }) {
 }
 
 // ── PAGE STOCK ALIMENT ────────────────────────────────────────────────────────
-function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockKgGlobal }) {
+function StockPage({ setPage, consoTotale, consoJours, updateConso, poulaillers, stockKgGlobal, setStockKgGlobal }) {
 
   const [stockKg, setStockKg] = useState(stockKgGlobal || 0);
   // Synchroniser avec l'état global
@@ -1561,13 +1561,17 @@ function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockK
   const [livrSacs, setLivrSacs]       = useState("");
   const [livrDate, setLivrDate]       = useState(new Date().toISOString().slice(0,10));
 
-  // Saisie conso par poulailler
-  const [consoDate,  setConsoDate]   = useState(new Date().toISOString().slice(0,10));
-  const [consoPoul,  setConsoPoul]   = useState("A"); // poulailler sélectionné
-  const [consoSacsA, setConsoSacsA] = useState("");
-  const [consoKgA,   setConsoKgA]   = useState("");
-  const [consoSacsB, setConsoSacsB] = useState("");
-  const [consoKgB,   setConsoKgB]   = useState("");
+  const listePoulaillers = Object.values(normalizePoulaillers(poulaillers || POULAILLERS_INIT));
+  const [consoInputs, setConsoInputs] = useState(() => (
+    listePoulaillers.reduce((acc, p) => {
+      const kg = Math.max(0, Math.round(toNumber(consoJours?.[p.id], p.consoJour)));
+      acc[p.id] = {
+        sacs: kg > 0 ? String(Math.floor(kg / SAC_KG)) : "",
+        kg: kg > 0 ? String(kg % SAC_KG) : "",
+      };
+      return acc;
+    }, {})
+  ));
 
   const [activeTab, setActiveTab]     = useState("stock");
 
@@ -1600,25 +1604,21 @@ function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockK
   };
 
   const handleConso = () => {
-    const sacsA = parseInt(consoSacsA)||0;
-    const kgA   = parseInt(consoKgA)||0;
-    const sacsB = parseInt(consoSacsB)||0;
-    const kgB   = parseInt(consoKgB)||0;
-    const totalA = sacsA * SAC_KG + kgA;
-    const totalB = sacsB * SAC_KG + kgB;
-    const total  = totalA + totalB;
-    const sacsTotal = Math.floor(total / SAC_KG);
+    const details = listePoulaillers.map((p) => {
+      const input = consoInputs[p.id] || {};
+      const sacs = Math.max(0, parseInt(input.sacs) || 0);
+      const kg = Math.max(0, parseInt(input.kg) || 0);
+      return { ...p, total: sacs * SAC_KG + kg };
+    });
+    const total = details.reduce((sum, p) => sum + p.total, 0);
     if (!total) return;
-    setStock(p => Math.max(0, p - total));
     setConsoJour(total);
-    // Une seule ligne = somme totale A + B
+    details.forEach((p) => updateConso?.(p.id, p.total));
     setHistorique(p => [{
       id: Date.now(), type:"consommation", date:new Date().toISOString().slice(0,10),
-      sacs: sacsTotal, kg: total,
-      label:`Conso totale (A: ${fmt(totalA)}kg · B: ${fmt(totalB)}kg)`
+      sacs: Math.floor(total / SAC_KG), kg: total,
+      label:`Conso référence mise à jour (${details.map(p => `${p.id}: ${fmt(p.total)}kg`).join(" · ")})`
     }, ...p]);
-    setConsoSacsA(""); setConsoKgA("");
-    setConsoSacsB(""); setConsoKgB("");
   };
 
   const tabs = [
@@ -1877,37 +1877,33 @@ function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockK
           </div>
 
           {/* Un bloc par poulailler */}
-          {Object.values(poulaillers || POULAILLERS_INIT).map((p, idx) => {
-            const sacsVal = idx===0 ? consoSacsA : consoSacsB;
-            const kgVal   = idx===0 ? consoKgA   : consoKgB;
-            const setSacs = idx===0 ? setConsoSacsA : setConsoSacsB;
-            const setKg   = idx===0 ? setConsoKgA   : setConsoKgB;
-            const pp = { ...p, sacs:sacsVal, setSacs, kg:kgVal, setKg };
-            const total = (parseInt(pp.sacs)||0)*SAC_KG + (parseInt(pp.kg)||0);
+          {listePoulaillers.map((p) => {
+            const input = consoInputs[p.id] || { sacs:"", kg:"" };
+            const total = (parseInt(input.sacs)||0)*SAC_KG + (parseInt(input.kg)||0);
             return (
               <div key={p.id} style={{ background:"rgba(255,255,255,0.85)", borderRadius:14, padding:"14px",
                 marginBottom:10, border:`1px solid ${p.couleur}33` }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-                  <span style={{ fontSize:20 }}>{pp.ico}</span>
-                  <div style={{ fontSize:13, fontWeight:800, color:pp.couleur }}>{pp.nom}</div>
+                  <span style={{ fontSize:20 }}>{p.ico}</span>
+                  <div style={{ fontSize:13, fontWeight:800, color:p.couleur }}>{p.nom}</div>
                   {total > 0 && (
                     <div style={{ marginLeft:"auto", background:p.couleur+"22", borderRadius:8, padding:"2px 10px" }}>
-                      <span style={{ fontSize:12, fontWeight:800, color:pp.couleur }}>{fmt(total)} kg</span>
+                      <span style={{ fontSize:12, fontWeight:800, color:p.couleur }}>{fmt(total)} kg</span>
                     </div>
                   )}
                 </div>
                 <div style={{ display:"flex", gap:10 }}>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:11, color:"#5A8A70", marginBottom:4 }}>Sacs (×50 kg)</div>
-                    <input type="number" min="0" value={p.sacs} onChange={e=>p.setSacs(e.target.value)}
+                    <input type="number" min="0" value={input.sacs} onChange={e=>setConsoInputs(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), sacs:e.target.value } }))}
                       placeholder="0"
-                      style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${pp.couleur}44`,
-                        background:"#fff", fontSize:20, fontWeight:900, color:pp.couleur, boxSizing:"border-box" }} />
+                      style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${p.couleur}44`,
+                        background:"#fff", fontSize:20, fontWeight:900, color:p.couleur, boxSizing:"border-box" }} />
                   </div>
                   <div style={{ display:"flex", alignItems:"flex-end", paddingBottom:10, fontSize:16, color:"#5A8A70", fontWeight:700 }}>+</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:11, color:"#5A8A70", marginBottom:4 }}>kg en plus</div>
-                    <input type="number" min="0" max="49" value={p.kg} onChange={e=>p.setKg(e.target.value)}
+                    <input type="number" min="0" max="49" value={input.kg} onChange={e=>setConsoInputs(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), kg:e.target.value } }))}
                       placeholder="0"
                       style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${p.couleur}44`,
                         background:"#fff", fontSize:20, fontWeight:900, color:"#0D1F17", boxSizing:"border-box" }} />
@@ -1918,16 +1914,13 @@ function StockPage({ setPage, consoTotale, poulaillers, stockKgGlobal, setStockK
           })}
 
           {/* Total + bouton */}
-          {((parseInt(consoSacsA)||0)+(parseInt(consoSacsB)||0)+(parseInt(consoKgA)||0)+(parseInt(consoKgB)||0)) > 0 && (
+          {Object.values(consoInputs).some(v => (parseInt(v.sacs)||0) > 0 || (parseInt(v.kg)||0) > 0) && (
             <div style={{ background:T.cardAmbre, borderRadius:12, padding:"10px 14px", marginBottom:12,
               display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span style={{ fontSize:13, color:"#5A8A70", fontWeight:700 }}>Total déduit du stock :</span>
+              <span style={{ fontSize:13, color:"#5A8A70", fontWeight:700 }}>Nouvelle conso totale :</span>
               <div style={{ textAlign:"right" }}>
                 <div style={{ fontSize:18, fontWeight:900, color:T.amber }}>
-                  {fmt(((parseInt(consoSacsA)||0)+(parseInt(consoSacsB)||0))*SAC_KG + (parseInt(consoKgA)||0)+(parseInt(consoKgB)||0))} kg
-                </div>
-                <div style={{ fontSize:11, color:"#5A8A70" }}>
-                  Stock restant : {fmt(Math.max(0, stockKg - (((parseInt(consoSacsA)||0)+(parseInt(consoSacsB)||0))*SAC_KG + (parseInt(consoKgA)||0)+(parseInt(consoKgB)||0))))} kg
+                  {fmt(Object.values(consoInputs).reduce((sum, v) => sum + (parseInt(v.sacs)||0)*SAC_KG + (parseInt(v.kg)||0), 0))} kg/jour
                 </div>
               </div>
             </div>
@@ -4930,7 +4923,11 @@ export default function App() {
   };
 
   const updateConso = (id, val) => {
-    setConsoJours(prev => ({ ...prev, [id]: val }));
+    setConsoJours(prev => {
+      const next = normalizeConsoJours({ ...prev, [id]: val }, poulaillers);
+      try { localStorage.setItem("pondetrack_conso", JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   // Conso totale = somme de tous les poulaillers
@@ -5012,7 +5009,7 @@ export default function App() {
       case "dashboard": return <DashboardPage setPage={setPage} darkMode={darkMode} setDarkMode={setDarkMode} poulailler={poulaillerActif} consoJours={consoJours} updateConso={updateConso} consoTotale={consoTotale} poulaillers={poulaillers} nomFerme={nomFerme} setAppState={setAppState} stockKgGlobal={stockKgGlobal} />;
       case "ponte":     return <PontePage setPage={setPage} poulailler={poulaillerActif} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "sante":     return <SantePage setPage={setPage} />;
-      case "stock":     return <StockPage setPage={setPage} consoTotale={consoTotale} poulaillers={poulaillers} stockKgGlobal={stockKgGlobal} setStockKgGlobal={setStockKgGlobal} />;
+      case "stock":     return <StockPage setPage={setPage} consoTotale={consoTotale} consoJours={consoJours} updateConso={updateConso} poulaillers={poulaillers} stockKgGlobal={stockKgGlobal} setStockKgGlobal={setStockKgGlobal} />;
       case "effectif":  return <EffectifPage setPage={setPage} poulailler={poulaillerActif} />;
       case "finances":  return <FinancePage setPage={setPage} ventes={ventesGlobal} setVentes={setVentesGlobal} />;
       case "parametres": return <SettingsPage setPage={setPage} user={user} setUser={setUser} setAppState={setAppState} nomFerme={nomFerme} setNomFerme={setNomFerme} darkMode={darkMode} setDarkMode={setDarkMode} />;
